@@ -17,6 +17,5 @@ warn_on_root = 0
 [android]
 # Modern Android API (adjust if needed)
 android.api = 34
-# Let p4a pick appropriate NDK; uncomment to pin:
-# android.ndk = 25b
+android.build_tools_version = 35.0.0
 archs = arm64-v8a,armeabi-v7a
