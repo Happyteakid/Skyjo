@@ -12,17 +12,10 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
+        shell: bash
         working-directory: skyjo_kivy   # folder with buildozer.spec + main.py
     steps:
       - uses: actions/checkout@v4
-
-      - name: Show tree (debug)
-        run: |
-          echo "Repo root:"
-          ls -la ..
-          echo
-          echo "skyjo_kivy:"
-          ls -la
 
       - name: Install system deps
         run: |
@@ -33,10 +26,12 @@ jobs:
       - name: Install Buildozer
         run: |
           python3 -m pip install --upgrade pip
-          python3 -m pip install --user Cython buildozer
+          python3 -m pip install --user buildozer Cython
+          # <<< This line fixes "buildozer: command not found"
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
 
-      # Precreate license files so internal sdkmanager calls never prompt
-      - name: Precreate Android SDK licenses (no prompts)
+      # (Optional) avoid SDK license prompts
+      - name: Precreate Android SDK licenses
         run: |
           export ANDROID_SDK_ROOT="$HOME/.buildozer/android/platform/android-sdk"
           mkdir -p "$ANDROID_SDK_ROOT/licenses"
@@ -44,10 +39,7 @@ jobs:
           echo "84831b9409646a918e30573bab4c9c91346d8abd" > "$ANDROID_SDK_ROOT/licenses/android-sdk-preview-license"
 
       - name: Build APK (debug)
-        env:
-          PATH: ${{ env.HOME }}/.local/bin:${{ env.PATH }}
-        run: |
-          buildozer -v android debug
+        run: buildozer -v android debug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
