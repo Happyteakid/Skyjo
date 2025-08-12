@@ -1,4 +1,3 @@
-# .github/workflows/build-apk.yml
 name: build-android-apk
 
 on:
@@ -13,13 +12,17 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: skyjo_kivy   # <— IMPORTANT: folder with buildozer.spec + main.py
+        working-directory: skyjo_kivy   # folder with buildozer.spec + main.py
     steps:
       - uses: actions/checkout@v4
 
       - name: Show tree (debug)
-        run: ls -la && echo && ls -la skyjo_kivy || true
-        working-directory: .
+        run: |
+          echo "Repo root:"
+          ls -la ..
+          echo
+          echo "skyjo_kivy:"
+          ls -la
 
       - name: Install system deps
         run: |
@@ -32,7 +35,7 @@ jobs:
           python3 -m pip install --upgrade pip
           python3 -m pip install --user Cython buildozer
 
-      # No sdkmanager calls here. We just precreate license files where Buildozer looks.
+      # Precreate license files so internal sdkmanager calls never prompt
       - name: Precreate Android SDK licenses (no prompts)
         run: |
           export ANDROID_SDK_ROOT="$HOME/.buildozer/android/platform/android-sdk"
