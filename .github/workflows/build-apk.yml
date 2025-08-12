@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: skyjo_kivy   # <-- IMPORTANT
+        working-directory: skyjo_kivy   # <-- folder with buildozer.spec + main.py
     steps:
       - uses: actions/checkout@v4
 
@@ -27,14 +27,32 @@ jobs:
           python3 -m pip install --upgrade pip
           python3 -m pip install --user Cython buildozer
 
+      - name: Bootstrap SDK (expected to fail once)
+        env:
+          PATH: ${{ env.HOME }}/.local/bin:${{ env.PATH }}
+        run: |
+          set +e
+          buildozer android debug
+          exit 0
+
+      - name: Accept Android SDK licenses
+        run: |
+          export ANDROID_SDK_ROOT="$HOME/.buildozer/android/platform/android-sdk"
+          SDKMANAGER="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"
+          if [ ! -x "$SDKMANAGER" ]; then
+            SDKMANAGER=$(find "$ANDROID_SDK_ROOT/cmdline-tools" -name sdkmanager -type f | head -n 1)
+          fi
+          yes | "$SDKMANAGER" --licenses
+
       - name: Build APK (debug)
         env:
           PATH: ${{ env.HOME }}/.local/bin:${{ env.PATH }}
         run: |
-          buildozer android debug
+          buildozer -v android debug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: skyjo-apk
-          path: skyjo_kivy/bin/*.apk
+          path: bin/*.apk
+
