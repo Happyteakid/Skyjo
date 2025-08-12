@@ -1,36 +1,40 @@
 name: build-android-apk
+
 on:
   workflow_dispatch:
   push:
     paths:
-      - '**.py'
-      - '**.kv'
-      - 'buildozer.spec'
+      - 'skyjo_kivy/**'
+      - '.github/workflows/build-apk.yml'
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: skyjo_kivy   # <-- IMPORTANT
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install deps
+      - name: Install system deps
         run: |
           sudo apt-get update
           sudo apt-get install -y python3-pip python3-dev build-essential \
               openjdk-17-jdk git unzip zlib1g-dev libffi-dev
 
-      - name: Install buildozer & p4a
+      - name: Install buildozer
         run: |
           python3 -m pip install --upgrade pip
-          pip3 install --user Cython buildozer
+          python3 -m pip install --user Cython buildozer
 
       - name: Build APK (debug)
+        env:
+          PATH: ${{ env.HOME }}/.local/bin:${{ env.PATH }}
         run: |
-          export PATH=$HOME/.local/bin:$PATH
           buildozer android debug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: skyjo-apk
-          path: bin/*.apk
+          path: skyjo_kivy/bin/*.apk
