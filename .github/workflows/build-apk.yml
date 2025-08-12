@@ -17,26 +17,57 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Show tree (debug)
+        run: |
+          echo "Repo root:"
+          ls -la ..
+          echo
+          echo "skyjo_kivy:"
+          ls -la
+
       - name: Install system deps
         run: |
           sudo apt-get update
           sudo apt-get install -y python3-pip python3-dev build-essential \
-              openjdk-17-jdk git unzip zlib1g-dev libffi-dev
+              openjdk-17-jdk git unzip zlib1g-dev libffi-dev wget
 
       - name: Install Buildozer
         run: |
           python3 -m pip install --upgrade pip
           python3 -m pip install --user buildozer Cython
-          # <<< This line fixes "buildozer: command not found"
+          # make sure buildozer is on PATH for later steps
           echo "$HOME/.local/bin" >> $GITHUB_PATH
 
-      # (Optional) avoid SDK license prompts
+      # Precreate SDK licenses to avoid interactive prompts
       - name: Precreate Android SDK licenses
         run: |
           export ANDROID_SDK_ROOT="$HOME/.buildozer/android/platform/android-sdk"
           mkdir -p "$ANDROID_SDK_ROOT/licenses"
           echo "24333f8a63b6825ea9c5514f83c2829b004d1fee" > "$ANDROID_SDK_ROOT/licenses/android-sdk-license"
           echo "84831b9409646a918e30573bab4c9c91346d8abd" > "$ANDROID_SDK_ROOT/licenses/android-sdk-preview-license"
+
+      # Install Android cmdline-tools and shim old tools/bin path
+      - name: Install Android cmdline-tools & shim sdkmanager
+        run: |
+          export ANDROID_SDK_ROOT="$HOME/.buildozer/android/platform/android-sdk"
+          mkdir -p "$ANDROID_SDK_ROOT/cmdline-tools"
+          cd "$ANDROID_SDK_ROOT"
+          CT_ZIP="commandlinetools-linux-11076708_latest.zip"
+          wget -q https://dl.google.com/android/repository/$CT_ZIP
+          unzip -q $CT_ZIP -d cmdline-tools
+          rm -f $CT_ZIP
+          # Move into the expected 'latest' folder
+          if [ -d cmdline-tools/cmdline-tools ]; then
+            mv cmdline-tools/cmdline-tools cmdline-tools/latest
+          fi
+          # Provide legacy path expected by older p4a (tools/bin)
+          mkdir -p "$ANDROID_SDK_ROOT/tools/bin"
+          ln -sf "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" "$ANDROID_SDK_ROOT/tools/bin/sdkmanager"
+          ln -sf "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/avdmanager" "$ANDROID_SDK_ROOT/tools/bin/avdmanager"
+          # Accept licenses and preinstall core packages
+          yes | "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null
+          "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" \
+            "platform-tools" "platforms;android-34" "build-tools;35.0.0"
 
       - name: Build APK (debug)
         run: buildozer -v android debug
