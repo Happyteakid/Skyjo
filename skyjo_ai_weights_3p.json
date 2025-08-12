@@ -1,0 +1,15 @@
+{
+  "pen_swap_up_base": 6,
+  "pen_swap_up_nonpos_extra": 9.0,
+  "pen_swap_up_gap_mult": 0.35,
+  "high_swap_block_min": 10.584304182825642,
+  "high_swap_block_penalty": 31.221992100205405,
+  "deny_bonus_cap": 8.389620619218325,
+  "deny_bonus_factor": 0.6,
+  "out_risk_penalty_factor": 0.5,
+  "swap_beats_flip_margin": -0.2,
+  "discard_over_stock_bias": 0.6,
+  "endgame_finish_margin": -2,
+  "finish_high_threshold": 8.0,
+  "finish_high_extra_margin": 2.5
+}
