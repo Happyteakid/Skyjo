@@ -1,3 +1,4 @@
+# .github/workflows/build-apk.yml
 name: build-android-apk
 
 on:
@@ -12,9 +13,13 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: skyjo_kivy   # <-- folder with buildozer.spec + main.py
+        working-directory: skyjo_kivy   # <— IMPORTANT: folder with buildozer.spec + main.py
     steps:
       - uses: actions/checkout@v4
+
+      - name: Show tree (debug)
+        run: ls -la && echo && ls -la skyjo_kivy || true
+        working-directory: .
 
       - name: Install system deps
         run: |
@@ -22,27 +27,18 @@ jobs:
           sudo apt-get install -y python3-pip python3-dev build-essential \
               openjdk-17-jdk git unzip zlib1g-dev libffi-dev
 
-      - name: Install buildozer
+      - name: Install Buildozer
         run: |
           python3 -m pip install --upgrade pip
           python3 -m pip install --user Cython buildozer
 
-      - name: Bootstrap SDK (expected to fail once)
-        env:
-          PATH: ${{ env.HOME }}/.local/bin:${{ env.PATH }}
-        run: |
-          set +e
-          buildozer android debug
-          exit 0
-
-      - name: Accept Android SDK licenses
+      # No sdkmanager calls here. We just precreate license files where Buildozer looks.
+      - name: Precreate Android SDK licenses (no prompts)
         run: |
           export ANDROID_SDK_ROOT="$HOME/.buildozer/android/platform/android-sdk"
-          SDKMANAGER="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"
-          if [ ! -x "$SDKMANAGER" ]; then
-            SDKMANAGER=$(find "$ANDROID_SDK_ROOT/cmdline-tools" -name sdkmanager -type f | head -n 1)
-          fi
-          yes | "$SDKMANAGER" --licenses
+          mkdir -p "$ANDROID_SDK_ROOT/licenses"
+          echo "24333f8a63b6825ea9c5514f83c2829b004d1fee" > "$ANDROID_SDK_ROOT/licenses/android-sdk-license"
+          echo "84831b9409646a918e30573bab4c9c91346d8abd" > "$ANDROID_SDK_ROOT/licenses/android-sdk-preview-license"
 
       - name: Build APK (debug)
         env:
@@ -55,4 +51,3 @@ jobs:
         with:
           name: skyjo-apk
           path: bin/*.apk
-
