@@ -10,70 +10,50 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        shell: bash
-        working-directory: skyjo_kivy  # folder with buildozer.spec + main.py
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v3
 
-      - name: Install system deps
+      - name: Install build dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y python3-pip python3-dev build-essential \
-              openjdk-17-jdk git unzip zlib1g-dev libffi-dev wget
+          sudo apt-get install -y \
+            build-essential git ffmpeg libsdl2-dev libsdl2-image-dev \
+            libsdl2-mixer-dev libsdl2-ttf-dev libportmidi-dev libswscale-dev \
+            libavformat-dev libavcodec-dev libunwind-dev zlib1g-dev \
+            libsqlite3-dev sqlite3 bzip2 libbz2-dev openssl libgdbm-dev \
+            libgdbm-compat-dev liblzma-dev libreadline-dev uuid-dev \
+            libgstreamer1.0 gstreamer1.0-plugins-base gstreamer1.0-plugins-good \
+            zip unzip autoconf libtool pkg-config libncurses5-dev libncursesw5-dev \
+            libtinfo5 cmake libffi-dev libssl-dev automake
 
-      - name: Install Buildozer
+      - name: Set up Java 17 (for Gradle)
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install pip dependencies (Buildozer & Cython)
         run: |
-          python3 -m pip install --upgrade pip
-          python3 -m pip install --user buildozer Cython
-          echo "$HOME/.local/bin" >> $GITHUB_PATH
+          python -m pip install --upgrade pip
+          pip install buildozer cython==0.29.33
 
-      - name: Precreate Android SDK licenses (no prompts)
-        run: |
-          export ANDROID_SDK_ROOT="$HOME/.buildozer/android/platform/android-sdk"
-          mkdir -p "$ANDROID_SDK_ROOT/licenses"
-          echo "24333f8a63b6825ea9c5514f83c2829b004d1fee" > "$ANDROID_SDK_ROOT/licenses/android-sdk-license"
-          echo "84831b9409646a918e30573bab4c9c91346d8abd" > "$ANDROID_SDK_ROOT/licenses/android-sdk-preview-license"
+      - name: Build with Buildozer (Android Debug)
+        run: yes | buildozer -v android debug
 
-      - name: Install Android cmdline-tools & core packages
-        run: |
-          export ANDROID_SDK_ROOT="$HOME/.buildozer/android/platform/android-sdk"
-          mkdir -p "$ANDROID_SDK_ROOT/cmdline-tools"
-          cd "$ANDROID_SDK_ROOT"
-          CT_ZIP="commandlinetools-linux-11076708_latest.zip"
-          wget -q https://dl.google.com/android/repository/$CT_ZIP
-          unzip -q $CT_ZIP -d cmdline-tools
-          rm -f $CT_ZIP
-          # put them under 'latest'
-          if [ -d cmdline-tools/cmdline-tools ]; then
-            mv cmdline-tools/cmdline-tools cmdline-tools/latest
-          fi
-          # legacy shim paths for older p4a checks
-          mkdir -p "$ANDROID_SDK_ROOT/tools/bin"
-          ln -sf "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" "$ANDROID_SDK_ROOT/tools/bin/sdkmanager"
-          ln -sf "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/avdmanager" "$ANDROID_SDK_ROOT/tools/bin/avdmanager"
-          # install packages (licenses already precreated)
-          "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" --sdk_root="$ANDROID_SDK_ROOT" \
-            "platform-tools" "platforms;android-34" "build-tools;35.0.0"
-
-      - name: Build APK (debug)
-        env:
-          # Make p4a/Buildozer use the SDK/NDK/APIs we just installed
-          ANDROID_SDK_ROOT: ${{ env.HOME }}/.buildozer/android/platform/android-sdk
-          ANDROIDSDK:       ${{ env.HOME }}/.buildozer/android/platform/android-sdk
-          ANDROIDNDK:       ${{ env.HOME }}/.buildozer/android/platform/android-ndk-r25b
-          ANDROIDAPI:       "34"
-          ANDROIDMINAPI:    "21"
-          PATH:             ${{ env.HOME }}/.local/bin:${{ env.PATH }}:${{ env.HOME }}/.buildozer/android/platform/android-sdk/platform-tools
-        run: |
-          buildozer -v android debug \
-          || { echo "=== tail p4a/build logs ==="; \
-               find .buildozer -type f \( -name "build*.txt" -o -name "build*.log" \) -print -exec tail -n 200 {} \; ; \
-               exit 1; }
-
-      - name: Upload APK
+      - name: Upload APK artifact
+        if: ${{ success() }}
         uses: actions/upload-artifact@v4
         with:
-          name: skyjo-apk
+          name: Skyjo-debug-apk
           path: bin/*.apk
+
+      - name: Print build logs on failure
+        if: ${{ failure() }}
+        run: |
+          echo "=== Showing last 50 lines of Buildozer logs ==="
+          find .buildozer -type f \( -name "build*.log" -o -name "build*.txt" \) -print -exec tail -n 50 {} \;
